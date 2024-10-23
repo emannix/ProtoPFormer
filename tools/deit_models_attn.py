@@ -14,6 +14,8 @@ __all__ = [
     'deit_base_distilled_patch16_384', 'deit_tiny_patch2_32', 'deit_tiny_patch2_32_wo_pos',
 ]
 
+from pdb import set_trace as pb
+
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
         super().__init__()
@@ -284,6 +286,10 @@ class DistilledVisionTransformer(VisionTransformer):
 
 @register_model
 def deit_tiny_patch16_224(pretrained=False, **kwargs):
+    del kwargs['pretrained_cfg']
+    del kwargs['pretrained_cfg_overlay']
+
+    # pb()
     model = MyVisionTransformer(
         patch_size=16, embed_dim=192, depth=12, num_heads=3, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
@@ -299,6 +305,9 @@ def deit_tiny_patch16_224(pretrained=False, **kwargs):
 
 @register_model
 def deit_small_patch16_224(pretrained=False, **kwargs):
+    del kwargs['pretrained_cfg']
+    del kwargs['pretrained_cfg_overlay']
+    
     model = MyVisionTransformer(
         patch_size=16, embed_dim=384, depth=12, num_heads=6, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
