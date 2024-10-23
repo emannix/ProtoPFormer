@@ -12,9 +12,11 @@ __all__ = [
     'deit_tiny_distilled_patch16_224', 'deit_small_distilled_patch16_224',
     'deit_base_distilled_patch16_224', 'deit_base_patch16_384',
     'deit_base_distilled_patch16_384', 'deit_tiny_patch2_32', 'deit_tiny_patch2_32_wo_pos',
+    'deit_small_dinov2_patch16_224'
 ]
 
 from pdb import set_trace as pb
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, Union, List
 
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
@@ -61,11 +63,24 @@ class Attention(nn.Module):
         x = self.proj_drop(x)
         return x, attn
 
+class LayerScale(nn.Module):
+    def __init__(
+            self,
+            dim: int,
+            init_values: float = 1e-5,
+            inplace: bool = False,
+    ) -> None:
+        super().__init__()
+        self.inplace = inplace
+        self.gamma = nn.Parameter(init_values * torch.ones(dim))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x.mul_(self.gamma) if self.inplace else x * self.gamma
 
 class Block(nn.Module):
 
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0.,
-                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm):
+                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, init_values: Optional[float] = None):
         super().__init__()
         self.norm1 = norm_layer(dim)
         self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
@@ -75,11 +90,15 @@ class Block(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
 
+        self.ls1 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+        self.ls2 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+
+
     def forward(self, x, policy=None):
         x_ori = x
         x, attn = self.attn(self.norm1(x), policy)
-        x = x_ori + self.drop_path(x)
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        x = x_ori + self.drop_path(self.ls1(x))
+        x = x + self.drop_path(self.ls2(self.mlp(self.norm2(x))))
         return x, attn
 
 
@@ -92,7 +111,7 @@ class MyVisionTransformer(VisionTransformer):
         self.blocks = nn.Sequential(*[
             Block(
                 dim=kwargs['embed_dim'], num_heads=kwargs['num_heads'], mlp_ratio=kwargs['mlp_ratio'], qkv_bias=kwargs['qkv_bias'], drop=kwargs['drop_rate'],
-                attn_drop=0., drop_path=dpr[i], norm_layer=norm_layer, act_layer=act_layer)
+                attn_drop=0., drop_path=dpr[i], norm_layer=norm_layer, act_layer=act_layer, init_values=kwargs['init_values'])
             for i in range(kwargs['depth'])])
         self.init_weights('')
 
@@ -143,6 +162,7 @@ class MyVisionTransformer(VisionTransformer):
         x = self.norm(x)
 
         return x[:, 1:]
+        # return x #[:, 1:]
 
     def forward_feature_maps_wtcls(self, x):
         B = x.shape[0]
@@ -241,7 +261,6 @@ class MyVisionTransformer(VisionTransformer):
 
         return x, (cls_token_attn, None)
 
-
 class DistilledVisionTransformer(VisionTransformer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -323,6 +342,10 @@ def deit_small_patch16_224(pretrained=False, **kwargs):
 
 @register_model
 def deit_base_patch16_224(pretrained=False, **kwargs):
+    
+    del kwargs['pretrained_cfg']
+    del kwargs['pretrained_cfg_overlay']
+    
     model = MyVisionTransformer(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
@@ -332,9 +355,33 @@ def deit_base_patch16_224(pretrained=False, **kwargs):
             url="https://dl.fbaipublicfiles.com/deit/deit_base_patch16_224-b5f2ef4d.pth",
             map_location="cpu", check_hash=True
         )
-        model.load_state_dict(checkpoint["model"])
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
+
+
+@register_model
+def deit_small_dinov2_patch16_224(pretrained=False, **kwargs):
+    del kwargs['pretrained_cfg']
+    del kwargs['pretrained_cfg_overlay']
+    
+    model = MyVisionTransformer(
+        patch_size=14, embed_dim=384, img_size=224, depth=12, num_heads=6, mlp_ratio=4, init_values=1e-5, qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    model.default_cfg = _cfg()
+    if pretrained:
+        dinov2_vits14 = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+        dinov2_vits14.pos_embed = torch.nn.Parameter(dinov2_vits14.interpolate_pos_encoding(torch.rand(1,16,16, 384), 224, 224))
+        model.load_state_dict(dinov2_vits14.state_dict(), strict=False)
+        # pb()
+        # res = torch.rand(1,3, 224,224)
+        # model.cuda()
+        # model.eval()        
+        # model.forward_feature_maps(res.cuda())[0,0,:]
+        # dinov2_vits14.cuda()
+        # dinov2_vits14(res.cuda())
+
+    return model
 
 @register_model
 def deit_tiny_distilled_patch16_224(pretrained=False, **kwargs):

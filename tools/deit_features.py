@@ -89,3 +89,33 @@ def deit_small_patch_features(pretrained=False, nb_classes=1000, drop=0.0, drop_
     #     model = get_pretrained_weights(model_name, model)
 
     return model
+
+
+def deit_base_patch_features(pretrained=False, nb_classes=1000, drop=0.0, drop_path=0.1, **kwargs):
+    model_name = 'deit_base_patch16_224'
+    model = create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=nb_classes,
+            drop_rate=drop,
+            drop_path_rate=drop_path,
+        )
+    # if pretrained == True:
+    #     model = get_pretrained_weights(model_name, model)
+
+    return model
+
+
+def deit_small_dinov2_patch_features(pretrained=False, nb_classes=1000, drop=0.0, drop_path=0.1, **kwargs):
+    model_name = 'deit_small_dinov2_patch16_224'
+    model = create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=nb_classes,
+            drop_rate=drop,
+            drop_path_rate=drop_path,
+        )
+    # if pretrained == True:
+    #     model = get_pretrained_weights(model_name, model)
+
+    return model
