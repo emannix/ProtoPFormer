@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account punim0980
+#SBATCH --account punim1793 
 #SBATCH --partition gpu-a100-short
 
 #SBATCH --gres=gpu:1
@@ -13,6 +13,9 @@
 #SBATCH --job-name=CUB_ProtoPFormer
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nathaniel.bloomfield@unimelb.edu.au
+
+# sinteractive --account=punim1793 --time=240 --ntasks=1 --mem=112gb --cpus-per-task 8 -p gpu-a100-short --gres=gpu:1
+# punim0980
 
 export mysystem=spartan
 export env_seed=1
