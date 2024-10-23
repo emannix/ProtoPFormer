@@ -12,7 +12,7 @@ __all__ = [
     'deit_tiny_distilled_patch16_224', 'deit_small_distilled_patch16_224',
     'deit_base_distilled_patch16_224', 'deit_base_patch16_384',
     'deit_base_distilled_patch16_384', 'deit_tiny_patch2_32', 'deit_tiny_patch2_32_wo_pos',
-    'deit_small_dinov2_patch16_224'
+    'deit_small_dinov2_patch16_224', 'deit_large_patch16_224'
 ]
 
 from pdb import set_trace as pb
@@ -111,7 +111,7 @@ class MyVisionTransformer(VisionTransformer):
         self.blocks = nn.Sequential(*[
             Block(
                 dim=kwargs['embed_dim'], num_heads=kwargs['num_heads'], mlp_ratio=kwargs['mlp_ratio'], qkv_bias=kwargs['qkv_bias'], drop=kwargs['drop_rate'],
-                attn_drop=0., drop_path=dpr[i], norm_layer=norm_layer, act_layer=act_layer, init_values=kwargs['init_values'])
+                attn_drop=0., drop_path=dpr[i], norm_layer=norm_layer, act_layer=act_layer) # , init_values=kwargs['init_values']
             for i in range(kwargs['depth'])])
         self.init_weights('')
 
@@ -358,7 +358,18 @@ def deit_base_patch16_224(pretrained=False, **kwargs):
         model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
+@register_model
+def deit_large_patch16_224(pretrained=False, **kwargs):
+    
+    del kwargs['pretrained_cfg']
+    del kwargs['pretrained_cfg_overlay']
+    
+    model = MyVisionTransformer(
+        patch_size=16, embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4, qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    model.default_cfg = _cfg()
 
+    return model
 
 @register_model
 def deit_small_dinov2_patch16_224(pretrained=False, **kwargs):

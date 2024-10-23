@@ -53,6 +53,9 @@ then
 elif [ "$model" = "deit_base_patch16_224" ]
 then
     reserve_layer_idx=11
+elif [ "$model" = "deit_large_patch16_224" ]
+then
+    reserve_layer_idx=11
 elif [ "$model" = "deit_small_dinov2_patch16_224" ]
 then
     reserve_layer_idx=11
